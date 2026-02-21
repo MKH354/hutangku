@@ -20,13 +20,26 @@ export async function saveData(syncCode, data) {
 }
 
 // Langganan realtime ke Firestore
+// callback(data, exists) — jika dokumen belum ada, exists=false dan data=null
 export function subscribeData(syncCode, callback) {
   const ref = doc(db, "hutangku", syncCode);
-  return onSnapshot(ref, (snap) => {
-    if (snap.exists()) {
-      try {
-        callback(JSON.parse(snap.data().payload));
-      } catch (_) {}
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (snap.exists()) {
+        try {
+          callback(JSON.parse(snap.data().payload), true);
+        } catch (_) {
+          callback(null, false);
+        }
+      } else {
+        // Dokumen belum ada (user baru) — langsung selesai loading dengan data kosong
+        callback(null, false);
+      }
+    },
+    (error) => {
+      console.error("Firestore error:", error);
+      callback(null, false);
     }
-  });
+  );
 }

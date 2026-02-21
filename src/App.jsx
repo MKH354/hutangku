@@ -54,8 +54,11 @@ export default function App() {
   /* ── Subscribe ke Firestore ── */
   const subscribe = (code) => {
     if (unsubRef.current) unsubRef.current();
-    unsubRef.current = subscribeData(code, (incoming) => {
-      setData(incoming);
+    unsubRef.current = subscribeData(code, (incoming, exists) => {
+      if (exists && incoming) {
+        setData(incoming);
+      }
+      // Jika dokumen belum ada, tetap pakai data kosong — loading selesai
       setLoading(false);
       setSyncing(false);
     });
@@ -64,10 +67,24 @@ export default function App() {
   useEffect(() => {
     if (syncCode) {
       subscribe(syncCode);
+      // Fallback: jika 8 detik masih loading, paksa selesai
+      const timer = setTimeout(() => {
+        setLoading((prev) => {
+          if (prev) {
+            showToast("Koneksi lambat. Cek internet kamu.", "err");
+            return false;
+          }
+          return prev;
+        });
+      }, 8000);
+      return () => {
+        clearTimeout(timer);
+        if (unsubRef.current) unsubRef.current();
+      };
     } else {
       setLoading(false);
+      return () => {};
     }
-    return () => { if (unsubRef.current) unsubRef.current(); };
   }, [syncCode]);
 
   /* ── Helpers ── */
